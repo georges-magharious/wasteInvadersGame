@@ -1,0 +1,1148 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+	<title>Waste Invaders Trial</title>
+	<style>
+		body {
+			margin: 0;
+			padding: 0;
+			background-color: #000000;
+		}
+		
+		#help{
+			position: absolute;
+			z-index: 20;
+			color: black;
+			top: 20px;
+			left: 120px;
+		}
+	</style>
+
+
+	
+	<script src="pixi.js"></script>
+</head>
+<body>
+<div id = "game">
+    <audio loop="loop" autoplay="autoplay" id = "bgmusic">
+    <source src="FreedomDance.wav" type="audio/wav">
+    <embed src="FreedomDance.wav" autostart="true" loop="true"> 
+    </audio>
+	<script>
+    
+    
+    // Here are the modes representing the state of the game
+    var introMode = true;
+    var startMode = false;
+    var endMode = false;
+    
+    // Music element 
+    var music = document.getElementById('bgmusic');
+    var mute = false;
+    
+    //boolean for paused Game
+    var paused = false;
+    
+    //Score Displayed
+    var score = 0;
+    var finalScore = 0;
+    
+    //Boolean indicating if fire is being acitvated
+    var fireActive = false;
+    
+    //level 0 -> easy ,, 1 -> hard
+    var level =0;
+    
+    
+    // create an new instance of a pixi stage
+	var stage = new PIXI.Stage(0x97c56e,true);
+	
+	// create a renderer instance
+	var renderer = PIXI.autoDetectRenderer(window.innerWidth, window.innerHeight,null);
+    
+	
+	// add the renderer view element to the DOM
+	document.body.appendChild(renderer.view);
+    renderer.view.style.position = "absolute";
+	renderer.view.style.top = "0px";
+	renderer.view.style.left = "0px";
+    requestAnimFrame( animate );
+    
+    //A container for intro objects
+    var introContainer = new PIXI.DisplayObjectContainer();
+	introContainer.position.x = 0;
+	introContainer.position.y = 0;
+    introContainer.alpha = 1;
+    
+    //introductory background
+    var introTexture = PIXI.Texture.fromImage("intro.jpg");
+    var introSprite = new PIXI.Sprite(introTexture); 
+    introSprite.position.x = 0;
+    introSprite.position.y = 0;
+    introSprite.width = window.innerWidth;
+    introSprite.height = window.innerHeight;
+    introSprite.alpha = 1;
+	introContainer.addChild(introSprite);
+    
+    
+    // easy button
+    var easyTexture = PIXI.Texture.fromImage("easy.png");
+    var easySprite = new PIXI.Sprite(easyTexture); 
+    easySprite.position.x = 370;
+    easySprite.position.y = 420;
+    easySprite.alpha = 1;
+    easySprite.setInteractive(true);
+	introContainer.addChild(easySprite); 
+    
+    
+    //hard button
+    var hardTexture = PIXI.Texture.fromImage("hard.png");
+    var hardSprite = new PIXI.Sprite(hardTexture); 
+    hardSprite.position.x = 370;
+    hardSprite.position.y = 520;
+    hardSprite.alpha = 1;
+    hardSprite.setInteractive(true);
+	introContainer.addChild(hardSprite); 
+    
+    
+    
+    
+    // create a gameContainer
+	var gameContainer = new PIXI.DisplayObjectContainer();
+	gameContainer.position.x = 0;
+	gameContainer.position.y = 0;
+    gameContainer.alpha = 1;
+    //gameContainer.setInteractive(true);
+	
+    //background for game container
+    var bgTexture = PIXI.Texture.fromImage("bg.png");
+    var count = 0;
+    var bgSprite = new PIXI.TilingSprite(bgTexture, window.innerWidth, window.innerHeight)
+    bgSprite.alpha = 0;
+	gameContainer.addChild(bgSprite);
+    
+    //gameContainer.swapChildren(easySprite, introSprite);
+    
+    
+    //var fireTexture = PIXI.Texture.fromImage("fire.png");
+    //var fire = new PIXI.Sprite(fireTexture); 
+    
+    //start button
+    var startTexture = PIXI.Texture.fromImage("start.png");
+    var startButton = new PIXI.Sprite(startTexture);  
+    startButton.position.x = 450;
+    startButton.position.y = 250;
+    startButton.setInteractive(true);
+    gameContainer.addChild(startButton);
+    
+    //Text displaying score
+    var scoreText = new PIXI.Text("SCORE: ", "bold italic 30px Arvo", "#3e1707", "#a4410e", 5);
+    scoreText.position.x = window.innerWidth - 130;
+	scoreText.position.y = 50;
+	scoreText.anchor.x = 0.5;
+    gameContainer.addChild(scoreText);
+    
+    //Text at the end displaying final score after finishing
+    var finalScoreText = new PIXI.Text("FINAL SCORE : ", "bold italic 45px Arvo", "#3e1707", "#a4410e", 5);
+    finalScoreText.position.x = 500;
+    finalScoreText.position.y = 400;
+	finalScoreText.anchor.x = 0.5;
+    finalScoreText.alpha = 0;
+    gameContainer.addChild(finalScoreText);
+    
+    
+    //Game over Text
+    var gameOverText = new PIXI.Text("GAME OVER", "bold 60px Podkova", "#C0C0C0", "#000000", 6);
+    // setting the anchor point to 0.5 will center align the text... great for spinning!
+    gameOverText.anchor.x = gameOverText.anchor.y = 0.5;
+    gameOverText.scale.x = gameOverText.scale.y = 0.01;
+    gameOverText.alpha = 0;
+    gameOverText.rotation = 0;
+	gameOverText.position.x = 500;
+	gameOverText.position.y = 100;
+    gameContainer.addChild(gameOverText);
+    
+    /*var backTexture = PIXI.Texture.fromImage("back.png");
+    var backButton = new PIXI.Sprite(backTexture);  
+    backButton.position.x = -1000;
+    backButton.position.y = -1000;
+    backButton.setInteractive(true);
+    gameContainer.addChild(backButton);*/
+    
+
+
+    
+    //Method to use keyboard for controls (mute,pause)
+    document.onkeydown = myKeyPress;
+    
+    function myKeyPress(e){
+
+            var keynum;
+
+            if(window.event){ // IE					
+            	keynum = e.keyCode;
+            }else
+                if(e.which){ // Netscape/Firefox/Opera					
+            		keynum = e.which;
+                 }
+            
+            var key = String.fromCharCode(keynum);
+            if ( key == 'M')
+                 {
+                  
+                 checkMute();
+                 
+                 }
+                 
+            if (key == 'P')
+                {
+                  checkPaused();
+                }
+                 
+            
+        }
+        
+        
+        
+        function checkMute()
+        {
+        
+                 if (mute == false)
+                 {
+                 music.muted = true;
+                 mute = true;
+                 muteButton.position.x = -1000;
+                 soundButton.position.x = 0;
+                 }
+                 
+                 else
+                 {
+                 music.muted = false;
+                 mute = false;
+                 muteButton.position.x = 0;
+                 soundButton.position.x = -1000;
+                 }
+                 
+        }
+        
+        
+        function checkPaused()
+        {
+        
+           if (paused == false)
+              
+              {
+              paused = true;
+              music.pause();
+              pauseButton.position.x = -1000;
+              playButton.position.x = 0;
+              }
+           
+           else
+           {
+              paused = false;
+              music.play();
+              pauseButton.position.x = 0;
+              playButton.position.x = -1000;
+           }
+        }
+        
+        
+        
+        
+        
+        
+    
+    
+    /*var trialText = new PIXI.Text("Trial ", "bold italic 30px Arvo", "#3e1707", "#a4410e", 5);
+    trialText.position.x = window.innerWidth - 150;
+	trialText.position.y = 100;
+	trialText.anchor.x = 0.5;
+    gameContainer.addChild(trialText);*/
+   
+    
+    //Those are textures indicating number of lives left
+    var lives = [];
+    var lifeCounter = 3;
+    for (var i=0; i < 3; i++) 
+	
+    {
+    
+       var lifeTexture = PIXI.Texture.fromImage("live.png");
+       var life = new PIXI.Sprite(lifeTexture);   
+       lives.push(life);
+       
+       lives[i].position.x = innerWidth - 100;
+       lives[i].position.y = 100 + 40*i;       
+
+       
+       gameContainer.addChild(life);
+    
+    }
+    
+    
+    
+    // array for bullets
+    var fires = [];
+    var fireCounter = 0;
+    for (var i=0; i < 100; i++) 
+	
+    {
+    
+       var fireTexture = PIXI.Texture.fromImage("fire.png");
+       var fire = new PIXI.Sprite(fireTexture); 
+       fire.alpha = 0;  
+       
+       fire.position.x = -1000;
+       fire.position.y = -1000;       
+
+       fires.push(fire);
+       gameContainer.addChild(fire);
+    
+    }
+    
+    
+    //array for aliens
+    var aliens = [];
+    var alienMovement = 0; // controls alien movement 
+    var aliensNumber = 60;
+    var alienLifeFactor; // controls alien's number of souls
+    var alienOscillationFactor; // controls aliens movement oscillation -> speed in x direction
+    var alienAmplitudeFactor; // controls amplitude of movement 
+    var alienDownFactor; // controls the speed in y direction
+    for (var i=0; i < aliensNumber; i++) 
+	
+    {
+    
+       var alienTexture = PIXI.Texture.fromImage("alien.png");
+       var alien = new PIXI.Sprite(alienTexture); 
+       alien.alpha = 1; 
+
+       alien.position.x = Math.random() * window.innerWidth;
+       alien.position.y = - (Math.random() * window.innerHeight) - window.innerHeight ;     
+       
+
+       aliens.push(alien);
+       gameContainer.addChild(alien);
+    
+    }
+    
+    
+    
+    
+            // creates spaceship texture
+	        var texture = PIXI.Texture.fromImage("spaceship.png");
+	        // create a new Sprite using the texture
+	        var ship = new PIXI.Sprite(texture);
+    
+	
+	        // center the sprites anchor point
+	        ship.anchor.x = 0.5;
+	        ship.anchor.y = 0.5;
+	
+	        // move the sprite t the center of the screen
+	        ship.position.x = -1000;
+	        ship.position.y = -1000;
+    
+            ship.setInteractive(true);
+            gameContainer.addChild(ship);
+            
+    
+    
+    //mute button
+    var muteTexture = PIXI.Texture.fromImage("mute.png");
+    var muteButton = new PIXI.Sprite(muteTexture); 
+    muteButton.position.x = 0;
+	muteButton.position.y = 0;
+    muteButton.alpha = 1;
+    muteButton.setInteractive(true);
+    gameContainer.addChild(muteButton);
+
+    
+    // sound button
+    var soundTexture = PIXI.Texture.fromImage("sound.png");
+    var soundButton = new PIXI.Sprite(soundTexture); 
+    soundButton.position.x = -1000;
+	soundButton.position.y = 0;
+    soundButton.alpha = 1;
+    soundButton.setInteractive(true);
+    gameContainer.addChild(soundButton);
+    
+    
+    //pause button
+    var pauseTexture = PIXI.Texture.fromImage("pause.png");
+    var pauseButton = new PIXI.Sprite(pauseTexture); 
+    pauseButton.position.x = 0;
+	pauseButton.position.y = 40;
+    pauseButton.alpha = 1;
+    pauseButton.setInteractive(true);
+    gameContainer.addChild(pauseButton);
+    
+    
+    //play button
+    var playTexture = PIXI.Texture.fromImage("play.png");
+    var playButton = new PIXI.Sprite(playTexture); 
+    playButton.position.x = -1000;
+	playButton.position.y = 40;
+    playButton.alpha = 1;
+    playButton.setInteractive(true);
+    gameContainer.addChild(playButton);
+    
+    
+    //close button
+    var closeTexture = PIXI.Texture.fromImage("close.png");
+    var closeButton = new PIXI.Sprite(closeTexture); 
+    closeButton.position.x = window.innerWidth - 40;
+	closeButton.position.y = 0;
+    closeButton.alpha = 1;
+    closeButton.setInteractive(true);
+    gameContainer.addChild(closeButton);
+    
+    
+    
+	
+    // create an array of assets to load
+	var assetsToLoader = [ "SpriteSheet.json" , "empTexture.json"];
+	
+	// create a new loader
+	loader = new PIXI.AssetLoader(assetsToLoader);
+	
+	// use callback
+	loader.onComplete = onAssetsLoaded
+	
+	//begin load
+	loader.load();
+	
+	
+	// holder to store explosions
+	var explosions = [];
+    var explosionCounter = 0;
+    
+    var hugeExplosion;
+    var hugeExplosionFactor = 0;
+    
+    var bombs = [];
+    var bombsNumber = 12;
+	
+	function onAssetsLoaded()
+	{
+		// create an array to store the textures
+		var explosionTextures = [];
+		
+		for (var i=0; i < 26; i++) 
+		{
+		 	var texture = PIXI.Texture.fromFrame("Explosion_Sequence_A " + (i+1) + ".png");
+		 	explosionTextures.push(texture);
+		};
+        		
+		//array for explosions
+		for (var i = 0; i < 10; i++) 
+		{
+			// create an explosion MovieClip
+			var explosion = new PIXI.MovieClip(explosionTextures);
+			
+		
+			explosion.position.x = -1000;
+			explosion.position.y = -1000;
+			explosion.anchor.x = 0.5;
+			explosion.anchor.y = 0.5;
+			
+			explosion.rotation = Math.random() * Math.PI;
+			explosion.scale.x = explosion.scale.y = 0.75 + Math.random() * 0.5;
+			
+			//explosion.gotoAndPlay(Math.random() * 27);
+            explosion.animationSpeed = 1;
+            
+            explosions.push(explosion);
+            gameContainer.addChild(explosion);
+			
+		}
+        
+        //huge explosion when spaceship crashes
+        var texture = PIXI.Texture.fromFrame("EMP.png");
+        hugeExplosion = new PIXI.Sprite(texture);
+        hugeExplosion.position.x = -1000;
+		hugeExplosion.position.y = -1000;
+        hugeExplosion.alpha = 0;
+        hugeExplosion.anchor.x = 0.5;
+        hugeExplosion.anchor.y = 0.5;
+        gameContainer.addChild(hugeExplosion);
+        
+        
+       //bombs array
+       for (var i=0; i < bombsNumber; i++) 
+      {
+       var bombTexture = PIXI.Texture.fromFrame("bad_bullet.png");
+       var bomb = new PIXI.Sprite(bombTexture); 
+       bomb.alpha = 1; 
+
+       bomb.position.x = Math.random() * window.innerWidth;
+       bomb.position.y = - (Math.random() * window.innerHeight) - window.innerHeight ;     
+       
+
+       bombs.push(bomb);
+       gameContainer.addChild(bomb);
+      }
+    }
+    
+    
+    //mute button sensor
+    muteButton.click = muteButton.tap = function(data)
+    
+    {
+      checkMute();
+      
+    
+    } 
+    
+    //sound button sensor
+    soundButton.click = soundButton.tap = function(data)
+    
+    {
+      checkMute();
+    } 
+    
+     //pause button sensor
+    pauseButton.click = pauseButton.tap = function(data)
+    
+    {
+      checkPaused();
+    }
+
+    
+     //play button sensor
+    playButton.click = playButton.tap = function(data)
+    
+    {
+      checkPaused();
+    }     
+    
+		
+
+     // //easy button sensor   
+    easySprite.click = easySprite.tap = function(data)
+    
+    {
+    
+     level = 0 ;
+     prepareGame();
+     goToGame();
+     checkLevel();
+ 
+     }
+    
+     //hard button sensor    
+    hardSprite.click = hardSprite.tap = function(data)
+    
+    {
+     level = 1;
+     prepareGame();
+     goToGame();
+     checkLevel();
+
+    }
+    
+    
+    // function to check level chosen by user and set the easiness of the game accordingly
+    function checkLevel()
+    {
+      if(level == 0)
+       {
+         aliensNumber = 30;
+         alienLifeFactor = 1;
+         alienOscillationFactor = 0.01;
+         alienAmplitudeFactor = 1; 
+         alienDownFactor = 2;
+         
+         bombsNumber = 7;
+       }
+      else 
+       {
+         aliensNumber = 45;
+         alienLifeFactor = 0.1;
+         alienOscillationFactor = 0.05;
+         alienAmplitudeFactor = 10; 
+         alienDownFactor = 5;
+         
+         bombsNumber = 12;
+       } 
+
+    }
+    
+    //function to skip introductory background and goes to game background
+    function goToGame()
+    {
+      stage.removeChild(introContainer);
+      stage.addChild(gameContainer);
+      introMode = false;
+    }
+    
+    /*backButton.click = backButton.tap = function(data)
+    {
+            this.position.x = -1000;
+            this.position.y = -1000;
+            
+            gameOverText.scale.x = gameOverText.scale.y = 0.01;
+            gameOverText.rotation = 0;
+            gameOverText.alpha = 0;
+            
+            finalScoreText.alpha = 0;
+            
+            stage.removeChild(gameContainer);
+            stage.addChild(introContainer);
+            
+            startMode = false;
+            endMode = false;
+            introMode = true;
+
+    }*/
+    
+    //close button sensor
+    closeButton.click = closeButton.tap = function(data)
+    
+    {
+       if(startMode)
+       
+       { resetGame(); 
+       
+        hugeExplosion.alpha =0;
+        hugeExplosion.position.x = -1000;
+        hugeExplosion.position.y = -1000;
+       }
+       
+       else if (endMode)
+       {
+            gameOverText.scale.x = gameOverText.scale.y = 0.01;
+            gameOverText.rotation = 0;
+            gameOverText.alpha = 0;
+            
+            finalScoreText.alpha = 0;
+        }
+        
+            stage.removeChild(gameContainer);
+            stage.addChild(introContainer);
+            
+            startMode = false;
+            endMode = false;
+            introMode = true;
+            
+    }
+        //function to prepare the display for starting
+        function prepareGame()
+        {
+          scoreText.alpha = 1;
+          score = 0;
+          
+          for (var i = 0 ; i<3 ; i++)
+             { lives[i].alpha = 1;}
+        
+        }
+    
+    //start button sensor
+    startButton.click = startButton.tap = function(data)
+		{
+			
+            this.alpha = 0;
+            this.position.x = -1000;
+            this.position.y = -1000;
+            
+            //backButton.position.x = -1000;
+            //backButton.position.y = -1000;
+            
+            startMode = true;
+            endMode = false;
+            
+            
+            
+            gameOverText.scale.x = gameOverText.scale.y = 0.01;
+            gameOverText.rotation = 0;
+            gameOverText.alpha = 0;
+            
+            finalScoreText.alpha = 0;
+            
+            prepareGame();
+            
+			ship.dragging = true;
+            
+            
+            
+            
+            // need to get parent coords..
+		    var newPosition = data.getLocalPosition(this.parent);
+		    ship.position.x = newPosition.x;
+		    ship.position.y = newPosition.y;
+
+            
+            
+            
+		};
+        
+        //set the callbacks for when the mouse or a touch moves to get the new coordinates of the spaceship
+		ship.mousemove = ship.touchmove = function(data)
+		{
+				if(this.dragging)
+			{
+                // need to get parent coords..
+				var newPosition = data.getLocalPosition(this.parent);
+				this.position.x = newPosition.x;
+				this.position.y = newPosition.y;
+			}
+		}
+        
+        
+        
+        // use the mousedown and touchstart to start firing bullets towards aliens
+		ship.mousedown = ship.touchstart = function(data)
+		{
+			// store a refference to the data
+			// The reason for this is because of multitouch
+			// we want to track the movement of this particular touch
+			this.data = data;
+			this.alpha = 1;
+		
+            fireActive = true;
+            
+            // need to get parent coords..
+		    //var newPosition = data.getLocalPosition(this.parent);
+		    //fire.position.x = ship.position.x;
+		    //fire.position.y = ship.position.y;
+            
+      
+		};
+        
+        // set the events for when the mouse is released or a touch is released to stop firing bullets
+		ship.mouseup = ship.mouseupoutside = ship.touchend = ship.touchendoutside = function(data)
+		{
+			this.alpha = 1
+			// set the interaction data to null
+			
+            fireActive = false;
+		};
+        
+        //adding the intro container to stage
+        stage.addChild(introContainer);
+        
+
+        
+    
+        
+	
+	function animate() {
+	
+	    requestAnimFrame( animate );
+if(!paused)    
+    {
+    if(!introMode)
+{    
+        
+        //if user has clicked start to start game
+        if (startMode)
+       { 
+        
+        
+        alienMovement += alienOscillationFactor;
+        
+        
+        fireCounter += 2;
+        
+        //checking every bullet if it's on screen then we give it a speed of 20 pixels per frame
+        for (var i=0; i < 100; i++) 
+          {
+    
+               if (fires[i].alpha == 1)       
+                     {
+                     fires[i].position.y -= 20;
+                     }
+                                       
+                                            
+               if (fires[i].position.y + fires[i].height < 0)
+               {
+                  fires[i].alpha = 0;
+                  fires[i].position.x = -1000;
+                  fires[i].position.y = -1000;
+               }
+               
+               
+    
+          }
+          
+       //checking if user is pressing to activate firing
+       if(fireActive)
+       {  
+         var currentFire = fireCounter%100;
+         fires[currentFire].alpha = 1;       
+         fires[currentFire].position.x = ship.position.x - fires[currentFire].width/2 + ship.width/4 ;
+		 fires[currentFire].position.y = ship.position.y - 60; 
+         
+         fires[currentFire + 1].alpha = 1;  
+         fires[currentFire + 1].position.x = ship.position.x - fires[currentFire + 1].width/2 - ship.width/4;
+		 fires[currentFire + 1].position.y = ship.position.y - 60;           
+       }
+       
+       
+       //setting the bombs in their places
+        for (var i=0; i < bombsNumber; i++) 
+      {
+          bombs[i].position.y += 2;
+          
+          if( i%4== 0)
+                bombs[i].position.x += Math.sin(alienMovement);
+          else if (i%4 == 1)
+                bombs[i].position.x -= Math.sin(alienMovement);
+          else if (i%4 == 2)
+                bombs[i].position.x += Math.cos(alienMovement);
+          else if (i%4 == 3)
+                bombs[i].position.x -= Math.cos(alienMovement);
+                
+            //checking if bomb hits the spaceship    
+           if(bombs[i].position.x < ship.position.x && bombs[i].position.x + bombs[i].width > ship.position.x  && bombs[i].position.y < ship.position.y - ship.height/4 && bombs[i].position.y + bombs[i].height > ship.position.y - ship.height/4)
+              {
+                    hit();
+                    
+                    
+              }
+              
+            if(bombs[i].position.x < ship.position.x && bombs[i].position.x + bombs[i].width > ship.position.x && bombs[i].position.y < ship.position.y + ship.height/4 && bombs[i].position.y + bombs[i].height > ship.position.y + ship.height/4)
+              {
+                   
+                    hit();
+              }
+              
+            
+            if(bombs[i].position.x < ship.position.x && bombs[i].position.x + bombs[i].width > ship.position.x && bombs[i].position.y < ship.position.y - ship.height/4 && bombs[i].position.y + bombs[i].height > ship.position.y - ship.height/4)
+              {
+                    
+                    hit();
+                    
+              }
+              
+            if(bombs[i].position.x < ship.position.x && bombs[i].position.x + bombs[i].width > ship.position.x && bombs[i].position.y < ship.position.y + ship.height/4 && bombs[i].position.y + bombs[i].height > ship.position.y + ship.height/4)
+              {
+                    hit();
+       
+              } 
+                
+          //reseting the bombs' places after going out of screen
+          if(bombs[i].position.y > window.innerHeight)
+               {
+                  bombs[i].position.x = Math.random() * window.innerWidth;
+                  bombs[i].position.y = - (Math.random() * window.innerHeight);
+               }
+      }                
+          
+          
+           //setting alien positions on screen   
+          for (var i=0; i < aliensNumber; i++) 
+            {
+              if(i%4 == 0)
+                aliens[i].position.x += alienAmplitudeFactor*Math.sin(alienMovement);
+              else if (i%4 == 1)
+                aliens[i].position.x -= alienAmplitudeFactor*Math.sin(alienMovement);
+              else if (i%4 == 2)
+                aliens[i].position.x += alienAmplitudeFactor*Math.cos(alienMovement);
+              else if (i%4 == 3)
+                aliens[i].position.x -= alienAmplitudeFactor*Math.cos(alienMovement);
+            
+            
+            
+             
+              aliens[i].position.y += alienDownFactor;
+                
+              
+                
+             //checking if bullet hits an alien 
+             for (var j=0; j < 100; j++) 
+          {
+
+              if(fires[j].position.y < aliens[i].position.y + aliens[i].height && fires[j].position.y > aliens[i].position.y  && fires[j].position.x > aliens[i].position.x && fires[j].position.x + fires[j].width < aliens[i].position.x + aliens[i].width) 
+               {
+                  aliens[i].alpha -= alienLifeFactor;
+                  fires[j].position.x = -1000;
+                  fires[j].position.y = -1000;
+                  fires[j].alpha = 0;
+
+                  
+                  if ( aliens[i].alpha < 0.4)
+                  
+                  {
+                   explosions[explosionCounter%10].position.x = aliens[i].position.x + aliens[i].width/2;
+			       explosions[explosionCounter%10].position.y = aliens[i].position.y + aliens[i].height/2;
+                   explosions[explosionCounter%10].gotoAndPlay(0);
+                   
+                   aliens[i].position.y =  2*window.innerHeight;
+                   score ++; 
+                  }
+               
+               }
+             
+
+            
+                 
+                 /*if(fires[j].position.y < aliens[i].position.y + aliens[i].height && fires[j].position.y > aliens[i].position.y  && fires[j].position.x < aliens[i].position.x && fires[j].position.x + fires[j].width > aliens[i].position.x) 
+                 {
+                   aliens[i].position.y =  window.innerHeight;
+                                      
+                 }
+                 
+                 if(fires[j].position.y < aliens[i].position.y + aliens[i].height && fires[j].position.y > aliens[i].position.y  && fires[j].position.x  < aliens[i].position.x + aliens[i].width && fires[j].position.x + fires[j].width > aliens[i].position.x + aliens[i].width) 
+                 {
+                   aliens[i].position.y =  window.innerHeight;
+                                      
+                 }*/
+          }
+          
+        
+              //reseting aliens poitions after getting out of screen
+              if(aliens[i].position.y > window.innerHeight)
+               {
+                  aliens[i].position.x = Math.random() * window.innerWidth;
+                  aliens[i].position.y = - (Math.random() * window.innerHeight);
+                  aliens[i].alpha = 1;
+               }
+
+
+               //checking if alien hits the spaceship
+               if(aliens[i].position.x < ship.position.x - ship.width/4 && aliens[i].position.x + aliens[i].width > ship.position.x - ship.width/4  && aliens[i].position.y < ship.position.y - ship.height/4 && aliens[i].position.y + aliens[i].height > ship.position.y - ship.height/4)
+              {
+                    hit();
+                    
+                    
+              }
+              
+            if(aliens[i].position.x < ship.position.x - ship.width/4 && aliens[i].position.x + aliens[i].width > ship.position.x - ship.width/4 && aliens[i].position.y < ship.position.y + ship.height/4 && aliens[i].position.y + aliens[i].height > ship.position.y + ship.height/4)
+              {
+                   
+                    hit();
+              }
+              
+            
+            if(aliens[i].position.x < ship.position.x + ship.width/4 && aliens[i].position.x + aliens[i].width > ship.position.x + ship.width/4 && aliens[i].position.y < ship.position.y - ship.height/4 && aliens[i].position.y + aliens[i].height > ship.position.y - ship.height/4)
+              {
+                    
+                    hit();
+                    
+              }
+              
+            if(aliens[i].position.x < ship.position.x + ship.width/4 && aliens[i].position.x + aliens[i].width > ship.position.x + ship.width/4 && aliens[i].position.y < ship.position.y + ship.height/4 && aliens[i].position.y + aliens[i].height > ship.position.y + ship.height/4)
+              {
+                    hit();
+       
+              }               
+          
+          }
+          
+          //setting the position of small explosion according to its frame number
+          for (var i=0; i < 10; i++) 
+          {
+           
+             if(explosions[i].currentFrame > 20)
+                        {
+                            explosions[i].position.x = -1000;
+			                explosions[i].position.y = -1000;
+                            explosions[i].gotoAndStop(0);
+                        }
+          
+          }
+          
+          
+          //checking if huge explosion's effect is over
+       if(hugeExplosion.alpha == 1)
+       {
+           hugeExplosionEffect();   
+       }
+       
+        
+        
+	}
+    
+    else if (endMode)
+    {
+         gameOver();
+    }
+    
+    
+    count += 0.005;
+        
+
+    bgSprite.tileScale.y = 2 + Math.cos(count);
+    bgSprite.tilePosition.y += 5;
+    
+    //trialText.setText("trial: "  + explosions[explosionCounter%10].currentFrame);
+    
+}
+        
+ }       
+        //setting the score text
+        scoreText.setText("Score: "  + score*10 );
+		
+	    // render the stage   
+	    renderer.render(stage);
+	}
+    
+    
+    
+    
+    
+    //setting the environment when the spaceship crashes
+    function  hit()
+    {
+    
+    
+                    hugeExplosion.alpha = 1;
+                    hugeExplosion.position.x = ship.position.x;
+                    hugeExplosion.position.y = ship.position.y;
+                    hugeExplosion.scale.x = hugeExplosion.scale.y = 0.01;
+                    
+                    
+                    for (var i=0; i < aliensNumber; i++) 
+                   {
+                     aliens[i].position.y =  2*window.innerHeight;
+                     aliens[i].alpha = 1;
+                   }
+                   
+                   for (var i=0; i < bombsNumber; i++) 
+                   {
+                     bombs[i].position.y =  2*window.innerHeight;
+                   }
+                    
+                    ship.alpha = 0.7;
+                    
+                    
+                    
+                    lifeCounter --;
+                    lives[lifeCounter].alpha = 0; 
+                    
+                    if (lifeCounter == 0)
+                      {
+                        startMode = false;
+                        endMode = true;
+                        finalScoreText.alpha = 1;
+                        gameOverText.alpha = 1;
+                        //backButton.position.x = 50;
+                        //backButton.position.y = 550;
+                        finalScore = score;
+                        
+                        resetGame();
+                      }
+                        
+    }
+    
+    function hugeExplosionEffect()
+    {
+      if(hugeExplosion.scale.x < 2)
+           { 
+             hugeExplosion.scale.x += 0.05;
+             hugeExplosion.scale.y += 0.05;
+             //hugeExplosion.position.x -= 0.05*hugeExplosion.width/2;
+             //hugeExplosion.position.y -= 0.05*hugeExplosion.height/2;
+             
+             hugeExplosion.rotation += 0.1;
+             
+             for (var i=0; i < aliensNumber; i++) 
+                   {
+                     aliens[i].position.y =  2*window.innerHeight;
+                   }
+             
+             for (var i=0; i < bombsNumber; i++) 
+                   {
+                     bombs[i].position.y =  2*window.innerHeight;
+                   }
+                    
+           }
+           
+           else
+           {
+           
+             hugeExplosion.alpha =0;
+             hugeExplosion.position.x = -1000;
+             hugeExplosion.position.y = -1000;
+             
+             ship.alpha = 1;
+             
+           }
+    
+    }
+    
+    
+     //resets every element in the display to its original position
+     function resetGame()
+     {
+       
+       
+       startButton.position.x = 450;
+       startButton.position.y = 250;
+       startButton.alpha = 1;
+       
+       lifeCounter = 3;
+       
+          
+       ship.position.x = -100;
+       ship.position.y = -100;
+       ship.dragging = false;
+       
+       
+       for(var i = 0; i<aliensNumber ; i++)
+      {
+       aliens[i].position.x = Math.random() * window.innerWidth;
+       aliens[i].position.y = - (Math.random() * window.innerHeight) - window.innerHeight ;     
+      }
+
+       for(var i = 0; i<bombsNumber ; i++)
+      {
+        bombs[i].position.x = Math.random() * window.innerWidth;
+        bombs[i].position.y = - (Math.random() * window.innerHeight) - window.innerHeight;
+      }      
+       
+       
+       for (var i = 0; i < 10; i++) 
+		{
+           explosions[i].position.x = -1000;
+		   explosions[i].position.y = -1000;
+           explosions[i].gotoAndStop(0);
+        }
+        
+        
+        for (var i = 0; i < 100; i++) 
+	    {
+           fires[i].position.x = -1000;
+           fires[i].position.y = -1000;   
+        }
+        
+
+        
+        scoreText.alpha = 0;
+        score = 0;
+        
+        
+        
+      }
+      
+      
+      
+    
+    
+    //function to set display when user has lost
+    function gameOver()
+    {
+
+       hugeExplosionEffect();
+       
+       if(gameOverText.rotation < 2*Math.PI)
+       
+       {
+          gameOverText.rotation += Math.PI/40;
+          gameOverText.scale.x = gameOverText.scale.y += 0.01;
+       }
+       
+       finalScoreText.setText("FINAL SCORE : "  + finalScore*10 );
+       
+       
+    }
+    
+    
+    
+
+	</script>
+    </div>
+	</body>
+</html>
